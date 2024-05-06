@@ -114,14 +114,6 @@ def _check_auctioneer():
     """
     assert msg.sender == self.auctioneer, "Caller is not the auctioneer"
 
-@internal
-def _check_owner_or_auctioneer():
-    """
-    @dev Checks if the message sender is either the owner or the auctioneer.
-    """
-    assert msg.sender == self.owner or msg.sender == self.auctioneer, \
-           "Caller is not the owner or the auctioneer"
-
 
 @internal
 def _transfer_ownership(new_owner: address):
@@ -167,6 +159,7 @@ auction_ends: public(HashMap[uint256, uint256])
 
 
 
+
 profit: public(uint256)
 
 struct Bid:
@@ -195,7 +188,7 @@ def start_auction(lot: uint256, patron: address):
     @dev Starts an auction for a lot.
     @param lot The tokenID of the nft to start an auction for.
     """
-    self._check_owner_or_auctioneer()
+    assert msg.sender == self.owner or msg.sender == self.auctioneer, "Unauthorized"
 
     assert self.auction_ends[lot] == 0, "Auction is still in progress"
     nft.transferFrom(msg.sender, self, lot)
@@ -219,7 +212,7 @@ def start_auction_with_auctionhouse_held_nft(lot: uint256, patron: address):
     @param lot The tokenID of the NFT to start an auction for.
     @param patron The address of the patron starting the auction.
     """
-    self._check_owner_or_auctioneer()
+    assert msg.sender == self.owner or msg.sender == self.auctioneer, "Unauthorized"
 
     # Ensure that this contract is the current owner of the lot
     assert self.auction_ends[lot] == 0, "Auction is ongoing"
@@ -234,7 +227,9 @@ def start_auction_with_auctionhouse_held_nft(lot: uint256, patron: address):
             bid: self.starting_bid,
         }
     )
-    log AuctionStarted(lot, patron, block.timestamp + self.auction_duration)    
+    log AuctionStarted(lot, patron, block.timestamp + self.auction_duration)
+
+    
 
 @external
 def bid(bid: uint256, lot: uint256):
@@ -267,6 +262,7 @@ def end(lot: uint256):
     """
 
     #@notice code improvement suggestion: added revert message.
+    
     assert block.timestamp >= self.auction_ends[lot], "AUCTION NOT FINISHED"
     winningBid: Bid = self.topBid[lot]
 
@@ -296,3 +292,4 @@ def withdraw_proceeds(benefactor: address):
     self._check_owner()
     bid_token.transfer(benefactor, self.profit)
     self.profit = 0
+
