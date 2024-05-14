@@ -275,8 +275,7 @@ def __init__(name_: String[25], symbol_: String[5], base_uri_: String[80], name_
     _BASE_URI = base_uri_
 
     self._transfer_ownership(msg.sender)
-    self.is_minter[msg.sender] = True
-    log RoleMinterChanged(msg.sender, True)
+    self._change_minter_status(msg.sender, True)
     self.auction_contract_address = auction_contract_address_
 
     _NAME = name_eip712_
@@ -559,7 +558,7 @@ def safe_mint(owner: address, uri: String[432]):
     @param uri The maximum 432-character user-readable
            string URI for computing `tokenURI`.
     """
-    assert self.is_minter[msg.sender], "AccessControl: access is denied"
+    assert self.is_minter[msg.sender], "AccessControl: not a minter!"
     # New tokens will be automatically assigned an incremental ID.
     # The first token ID will be zero.
     token_id: uint256 = self._counter
@@ -591,6 +590,16 @@ def mint_and_start_auction(uri: String[432], patron: address):
 
 
 
+@internal
+def _change_minter_status(minter: address, status: bool):
+    """
+    @dev Changes the minter status and logs the event.
+    @param minter The address whose minter status is being changed.
+    @param status The new minter status to set.
+    """
+    self.is_minter[minter] = status
+    log RoleMinterChanged(minter, status)
+
 @external
 def set_minter(minter: address, status: bool):
     """
@@ -605,12 +614,7 @@ def set_minter(minter: address, status: bool):
     """
     self._check_owner()
     assert minter != empty(address), "AccessControl: minter is the zero address"
-    # We ensured in the previous step `self._check_owner()`
-    # that `msg.sender` is the `owner`.
-    assert minter != msg.sender, "AccessControl: minter is owner address"
-    self.is_minter[minter] = status
-    log RoleMinterChanged(minter, status)
-
+    assert minter != msg.sender, "AccessControl: minte
 
 @external
 def change_auction_house_contract(new_auction_house_contract: address):
@@ -694,51 +698,53 @@ def eip712Domain() -> (bytes1, String[50], String[20], uint256, address, bytes32
 
 
 @external
-def transfer_ownership(new_owner: address):
+def change_ownership_and_minter(new_owner: address):
     """
-    @dev Transfers the ownership of the contract
-         to a new account `new_owner`.
-    @notice Note that this function can only be
-            called by the current `owner`. Also,
-            the `new_owner` cannot be the zero address.
-
-            WARNING: The ownership transfer also removes
-            the previous owner's minter role and assigns
-            the minter role to `new_owner` accordingly.
+    @dev Transfers the ownership of the contract to a new account `new_owner` and
+         updates the minter status for both old and new owner.
+    @notice Note that this function can only be called by the current `owner`. Also,
+            the `new_owner` cannot be the zero address. It ensures the transfer of
+            ownership is clear about the side-effects of also transferring minter roles.
     @param new_owner The 20-byte address of the new owner.
     """
     self._check_owner()
     assert new_owner != empty(address), "Ownable: new owner is the zero address"
 
-    self.is_minter[msg.sender] = False
-    log RoleMinterChanged(msg.sender, False)
+    # Revoke minter status of current owner and update event log
+    self._change_minter_status(msg.sender, False)
 
+    # Transfer ownership and assign minter status to new owner
     self._transfer_ownership(new_owner)
-    self.is_minter[new_owner] = True
-    log RoleMinterChanged(new_owner, True)
-
+    self._change_minter_status(new_owner, True)
 
 @external
-def renounce_ownership():
+def renounce_ownership_and_minter():
     """
-    @dev Leaves the contract without an owner.
-    @notice Renouncing ownership will leave the
-            contract without an owner, thereby
-            removing any functionality that is
-            only available to the owner. Note
-            that the `owner` is also removed from
-            the list of allowed minters.
-
-            WARNING: All other existing `minter`
-            addresses will still be able to create
-            new tokens. Consider removing all non-owner
-            minter addresses first via `set_minter`
-            before calling `renounce_ownership`.
+    @dev Leaves the contract without an owner and updates the minter status.
+    @notice Renouncing ownership will leave the contract without an owner,
+            thereby removing any functionality that is only available to the owner.
+            This function also revokes the minter role of the renouncing owner.
+            Note that all other existing `minter` addresses will still be able to
+            create new tokens. Consider removing all non-owner minter addresses first
+            via `set_minter` before calling this function.
     """
     self._check_owner()
-    self.is_minter[msg.sender] = False
-    log RoleMinterChanged(msg.sender, False)
+
+    # Revoke minter status of current owner and update event log
+    self._change_minter_status(msg.sender, False)
+
+    # Officially renounce ownership to no address
     self._transfer_ownership(empty(address))
+
+@internal
+def _transfer_ownership(new_owner: address):
+    """
+    @dev Internal function to perform the actual ownership transfer.
+    @param new_owner The 20-byte address of the new owner.
+    """
+    previous_owner = self.owner
+    self.owner = new_owner
+    log OwnershipTransferred(previous_owner, new_owner)
 
 
 @internal

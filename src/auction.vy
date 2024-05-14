@@ -17,7 +17,7 @@ auction_duration: public(uint256)# Duration of auctions, default 5 days
 minimum_bid_increment_percentage: public(uint256)  # Minimum bid increment
 extension_time_seconds: public(uint256)  # Time added to auction if a bid is made near end
 starting_bid: public(uint256)  # Starting bid for auctions
-MAX_FEE_PERCENTAGE: constant(uint256) = 1000
+MAX_FEE_PERCENTAGE: constant(uint256) = 100000
 fee: public(uint256)
 bid_token: public(immutable(ERC20))
 nft: public(immutable(ERC721))
@@ -145,7 +145,7 @@ def _transfer_ownership(new_owner: address):
 event AuctionStarted:
     lot: indexed(uint256)
     patron: indexed(address)
-    endDate: uint256
+    end_date: uint256
 
 
 event AuctionEnded:
@@ -158,7 +158,7 @@ event BidSubmitted:
     lot: indexed(uint256)
     bidder: indexed(address)
     bid: uint256
-    newEndDate: uint256
+    new_end_date: uint256
 
 
 topBid: public(HashMap[uint256, Bid])
@@ -209,7 +209,7 @@ def start_auction(lot: uint256, patron: address):
             bid: self.starting_bid,
         }
     )
-    #@notice code improvement suggestion: added auction endDate.
+    #@notice code improvement suggestion: added auction end_date.
     log AuctionStarted(lot, patron, block.timestamp + self.auction_duration)
 
 @external
@@ -272,7 +272,7 @@ def end(lot: uint256):
 
     if winningBid.bidder != empty(address):
         # There was at least one bid higher than the starting bid
-        fee: uint256 = (winningBid.bid * self.fee) / 1000
+        fee: uint256 = (winningBid.bid * self.fee) / 100_000
         patron_proceeds: uint256 = winningBid.bid - fee
         self.profit += fee
 
