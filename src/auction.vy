@@ -17,7 +17,8 @@ auction_duration: public(uint256)# Duration of auctions, default 5 days
 minimum_bid_increment_percentage: public(uint256)  # Minimum bid increment
 extension_time_seconds: public(uint256)  # Time added to auction if a bid is made near end
 starting_bid: public(uint256)  # Starting bid for auctions
-MAX_FEE_PERCENTAGE: constant(uint256) = 100000
+MAX_FEE_PERCENTAGE: constant(uint256) = 100_000
+PERCENTAGE_SCALAR: constant(uint256) = 100_000 //
 fee: public(uint256)
 bid_token: public(immutable(ERC20))
 nft: public(immutable(ERC721))
@@ -272,7 +273,7 @@ def end(lot: uint256):
 
     if winningBid.bidder != empty(address):
         # There was at least one bid higher than the starting bid
-        fee: uint256 = (winningBid.bid * self.fee) / 100_000
+        fee: uint256 = (winningBid.bid * self.fee) / PERCENTAGE_SCALAR
         patron_proceeds: uint256 = winningBid.bid - fee
         self.profit += fee
 
