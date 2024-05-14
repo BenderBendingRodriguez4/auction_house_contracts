@@ -17,11 +17,11 @@ auction_duration: public(uint256)# Duration of auctions, default 5 days
 minimum_bid_increment_percentage: public(uint256)  # Minimum bid increment
 extension_time_seconds: public(uint256)  # Time added to auction if a bid is made near end
 starting_bid: public(uint256)  # Starting bid for auctions
-MAX_FEE_PERCENTAGE: constant(uint256) = 100_000
-PERCENTAGE_SCALAR: constant(uint256) = 100_000 
-fee: public(uint256)
-bid_token: public(immutable(ERC20))
-nft: public(immutable(ERC721))
+MAX_FEE_PERCENTAGE: constant(uint256) = 100_000  # Max fee percentage basis points
+PERCENTAGE_SCALAR: constant(uint256) = 100_000  # Scalar to maintain precision in percentages
+fee: public(uint256)  # Fee percentage of the auction house
+bid_token: public(immutable(ERC20))  # ERC20 token used for bidding
+nft: public(immutable(ERC721))  # ERC721 token that represents the NFTs
 
 # ///////////////////////////////////////////////////// #
 #                     Admin Functions                   #
@@ -144,18 +144,38 @@ def _transfer_ownership(new_owner: address):
 
 
 event AuctionStarted:
+    """
+    @notice Emitted when a new auction starts.
+    @dev This event is triggered when an auction is initiated by the auctioneer.
+    @param lot The tokenId of the NFT being auctioned.
+    @param patron The address that initiated the auction, often the owner or a delegate.
+    @param end_date The Unix timestamp when the auction will end.
+    """
     lot: indexed(uint256)
     patron: indexed(address)
     end_date: uint256
 
-
 event AuctionEnded:
+    """
+    @notice Emitted when an auction ends.
+    @dev This event is triggered either when the auction duration has elapsed or the auction is manually ended by the auctioneer.
+    @param lot The tokenId of the NFT auctioned.
+    @param winner The address of the highest bidder who won the NFT.
+    @param proceeds The total amount of ERC20 tokens that the auction yielded, after fees.
+    """
     lot: indexed(uint256)
     winner: indexed(address)
     proceeds: uint256
 
-
 event BidSubmitted:
+    """
+    @notice Emitted whenever a new bid is placed on an auction.
+    @dev This event is used to track bids and inform participants and observers of changes in auction state.
+    @param lot The tokenId of the NFT being auctioned.
+    @param bidder The address of the participant who placed the bid.
+    @param bid The amount of the bid placed, in ERC20 tokens.
+    @param new_end_date The updated end date of the auction if the bid was placed close to the original end time and triggered an extension.
+    """
     lot: indexed(uint256)
     bidder: indexed(address)
     bid: uint256
@@ -210,7 +230,6 @@ def start_auction(lot: uint256, patron: address):
             bid: self.starting_bid,
         }
     )
-    #@notice code improvement suggestion: added auction end_date.
     log AuctionStarted(lot, patron, block.timestamp + self.auction_duration)
 
 @external
