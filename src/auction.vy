@@ -148,7 +148,7 @@ event AuctionStarted:
     @notice Emitted when a new auction starts.
     @dev This event is triggered when an auction is initiated by the auctioneer.
     @param lot The tokenId of the NFT being auctioned.
-    @param patron The address that initiated the auction, often the owner or a delegate.
+    @param patron The address of the patron for whom the auctioneer is starting the auction. 
     @param end_date The Unix timestamp when the auction will end.
     """
     lot: indexed(uint256)
@@ -206,55 +206,49 @@ def __init__(_token: ERC20, _nft: ERC721, _fee: uint256):
 
     self._transfer_ownership(msg.sender)
     self.fee = _fee
-    self.auction_duration =  86400 * 5  # default 5 days
+    self.auction_duration =  432_000  # default 5 days
     self.extension_time_seconds = 3600  # default 1 hour
 
 
 @external
 def start_auction(lot: uint256, patron: address):
     """
-    @dev Starts an auction for a lot.
-    @param lot The tokenID of the nft to start an auction for.
+    @dev Starts an auction for a lot, transferring the NFT to this contract.
+    @param lot The tokenID of the NFT to start an auction for.
+    @param patron The address of the patron whom the auctioneer is starting the auction for.
     """
     self._check_owner_or_auctioneer()
-
     assert self.auction_ends[lot] == 0, "Auction is still in progress"
     nft.transferFrom(msg.sender, self, lot)
-
-    self.auction_ends[lot] = block.timestamp + self.auction_duration
-
-    self.patron[lot] = patron
-    self.topBid[lot] = Bid(
-        {
-            bidder: empty(address),
-            bid: self.starting_bid,
-        }
-    )
-    log AuctionStarted(lot, patron, block.timestamp + self.auction_duration)
+    self._initalize_auction(lot, patron)
 
 @external
 def start_auction_with_auctionhouse_held_nft(lot: uint256, patron: address):
     """
-    @dev Starts an auction for a lot after verifying the auction house owns the NFT.
+    @dev Starts an auction for a lot already held by the auction house.
     @param lot The tokenID of the NFT to start an auction for.
-    @param patron The address of the patron starting the auction.
+    @param patron The address of the patron whom the auctioneer is starting the auction for.
     """
     self._check_owner_or_auctioneer()
-
-    # Ensure that this contract is the current owner of the lot
     assert self.auction_ends[lot] == 0, "Auction is ongoing"
     assert nft.ownerOf(lot) == self, "Auction House must own the NFT to start an auction."
+    self._initalize_auction(lot, patron)
 
+@internal
+def _initalize_auction(lot: uint256, patron: address):
+    """
+    @dev Initalizes  an auction by setting the conditions common to both auction types.
+    @param lot The token ID of the NFT to auction.
+    @param patron The address initiating the auction.
+    """
     self.auction_ends[lot] = block.timestamp + self.auction_duration
-    
     self.patron[lot] = patron
-    self.topBid[lot] = Bid(
-        {
-            bidder: empty(address),  # No bidder yet
-            bid: self.starting_bid,
-        }
-    )
-    log AuctionStarted(lot, patron, block.timestamp + self.auction_duration)    
+    self.topBid[lot] = Bid({
+        bidder: empty(address),
+        bid: self.starting_bid
+    })
+    log AuctionStarted(lot, patron, self.auction_ends[lot])
+
 
 @external
 def bid(bid: uint256, lot: uint256):
