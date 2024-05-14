@@ -18,7 +18,7 @@ minimum_bid_increment_percentage: public(uint256)  # Minimum bid increment
 extension_time_seconds: public(uint256)  # Time added to auction if a bid is made near end
 starting_bid: public(uint256)  # Starting bid for auctions
 MAX_FEE_PERCENTAGE: constant(uint256) = 100_000
-PERCENTAGE_SCALAR: constant(uint256) = 100_000 //
+PERCENTAGE_SCALAR: constant(uint256) = 100_000 
 fee: public(uint256)
 bid_token: public(immutable(ERC20))
 nft: public(immutable(ERC721))
@@ -168,7 +168,7 @@ auction_ends: public(HashMap[uint256, uint256])
 
 
 
-profit: public(uint256)
+protocol_fee: public(uint256)
 
 struct Bid:
         bidder: address
@@ -275,7 +275,7 @@ def end(lot: uint256):
         # There was at least one bid higher than the starting bid
         fee: uint256 = (winningBid.bid * self.fee) / PERCENTAGE_SCALAR
         patron_proceeds: uint256 = winningBid.bid - fee
-        self.profit += fee
+        self.protocol_fee += fee
 
         bid_token.transfer(self.patron[lot], patron_proceeds)
         nft.transferFrom(self, winningBid.bidder, lot)
@@ -295,5 +295,5 @@ def withdraw_proceeds(benefactor: address):
     @dev Withdraws the fees generated from the auctions.
     """
     self._check_owner()
-    bid_token.transfer(benefactor, self.profit)
-    self.profit = 0
+    bid_token.transfer(benefactor, self.protocol_fee)
+    self.protocol_fee = 0
