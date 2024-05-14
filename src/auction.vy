@@ -8,6 +8,8 @@
 
 from vyper.interfaces import ERC20
 from vyper.interfaces import ERC721
+interface NftContract:
+    def safe_mint(owner: address, uri: String[176]): nonpayable
 
 
 #@notice code improvement suggestion: no magic numbers & admin-changeable protocol variables
@@ -208,6 +210,22 @@ def __init__(_token: ERC20, _nft: ERC721, _fee: uint256):
     self.fee = _fee
     self.auction_duration =  432_000  # default 5 days
     self.extension_time_seconds = 3600  # default 1 hour
+
+
+
+@external
+def mint_and_start_auction(uri: String[176], patron: address, nft_contract: NftContract):
+    """
+    @dev Mints a new NFT and starts an auction for it.
+    @param uri The URI for the NFT to be minted.
+    @param patron The address of the patron for whom the auction is being started.
+    @param nft_contract The address of the NFT contract with minting capability.
+    """
+    self._check_owner_or_auctioneer()
+    token_id: uint256 = nft_contract.mint(uri, self)  # Mint directly to the auction contract
+
+    assert self.auction_ends[token_id] == 0, "Auction is still in progress"
+    self._initialize_auction(token_id, patron)
 
 
 @external

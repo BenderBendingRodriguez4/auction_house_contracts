@@ -48,9 +48,6 @@
 interface IERC721Receiver:
     def onERC721Received(operator: address, _from: address, tokenId: uint256, data: Bytes[1024]) -> bytes4: nonpayable
 
-interface IAuctionContract:
-    def start_auction_with_auctionhouse_held_nft(lot: uint256, patron: address): nonpayable
-
 # @dev Stores the ERC-165 interface identifier for each
 # imported interface. The ERC-165 interface identifier
 # is defined as the XOR of all function selectors in the
@@ -131,9 +128,6 @@ owner: public(address)
 # @dev Returns `True` if an `address` has been
 # granted the minter role.
 is_minter: public(HashMap[address, bool])
-
-# @dev The auction contract address
-auction_contract_address : public(address)
 
 
 # @dev Returns the current on-chain tracked nonce
@@ -248,7 +242,7 @@ event RoleMinterChanged:
 
 @external
 @payable
-def __init__(name_: String[25], symbol_: String[5], base_uri_: String[80], name_eip712_: String[50], version_eip712_: String[20], auction_contract_address_: address):
+def __init__(name_: String[25], symbol_: String[5], base_uri_: String[80], name_eip712_: String[50], version_eip712_: String[20]):
     """
     @dev To omit the opcodes for checking the `msg.value`
          in the creation-time EVM bytecode, the constructor
@@ -277,7 +271,7 @@ def __init__(name_: String[25], symbol_: String[5], base_uri_: String[80], name_
     self._transfer_ownership(msg.sender)
     self.is_minter[msg.sender] = True
     log RoleMinterChanged(msg.sender, True)
-    self.auction_contract_address = auction_contract_address_
+
 
     _NAME = name_eip712_
     _VERSION = version_eip712_
@@ -574,24 +568,6 @@ def safe_mint(owner: address, uri: String[176]):
     self._set_token_uri(token_id, uri)
 
 @external
-def mint_and_start_auction(uri: String[176], patron: address):
-    """
-    @notice Only authorized minters can access this function.
-    @param uri The maximum 176-character user-readable string URI for computing `tokenURI`.
-    @param patron The address of the patron starting the auction.
-    """
-    assert self.is_minter[msg.sender], "AccessControl: access is denied"
-    token_id: uint256 = self._counter
-    self._counter += 1
-
-    self._mint(self.auction_contract_address, token_id)
-    self._set_token_uri(token_id, uri)
-    # Start an auction with the newly minted token
-    IAuctionContract(self.auction_contract_address).start_auction_with_auctionhouse_held_nft(token_id, patron)
-
-
-
-@external
 def set_minter(minter: address, status: bool):
     """
     @dev Adds or removes an address `minter` to/from the
@@ -610,16 +586,6 @@ def set_minter(minter: address, status: bool):
     assert minter != msg.sender, "AccessControl: minter is owner address"
     self.is_minter[minter] = status
     log RoleMinterChanged(minter, status)
-
-
-@external
-def change_auction_house_contract(new_auction_house_contract: address):
-    """
-    @dev Changes the auction contract address
-    @param new_auction_house_contract The new auction contract address
-    """
-    self._check_owner()
-    self.auction_contract_address = new_auction_house_contract
 
 
 @external
