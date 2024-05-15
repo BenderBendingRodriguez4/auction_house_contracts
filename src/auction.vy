@@ -9,13 +9,13 @@
 from vyper.interfaces import ERC20
 from vyper.interfaces import ERC721
 interface NftContract:
-    def safe_mint(owner: address, uri: String[176]): nonpayable
+    def safe_mint(owner: address, uri: String[176]) -> uint256: nonpayable
 
 
-#@notice code improvement suggestion: no magic numbers & admin-changeable protocol variables
+
 
 # Protocol settings variables
-auction_duration: public(uint256)# Duration of auctions, default 5 days
+auction_duration: public(uint256) # Duration of auctions, default 5 days
 minimum_bid_increment_percentage: public(uint256)  # Minimum bid increment
 extension_time_seconds: public(uint256)  # Time added to auction if a bid is made near end
 starting_bid: public(uint256)  # Starting bid for auctions
@@ -47,7 +47,6 @@ event AuctioneerChanged:
 
 
 
-#@notice code improvement suggestion:  admin-changeable protocol variables
 @external
 def change_auction_duration(new_duration: uint256):
     """
@@ -56,6 +55,17 @@ def change_auction_duration(new_duration: uint256):
     """
     self._check_owner()
     self.auction_duration = new_duration
+
+@external
+def change_sniping_timer(new_timer: uint256):
+    """
+    @dev Changes the time added to an auction if a bid is made near its end.
+    @notice Can only be called by the contract owner.
+    @param new_timer The new extension time in seconds.
+    """
+    self._check_owner()
+    assert new_timer > 0 and new_timer <= 86400, "Invalid timer: must be between 1 second and 24 hours"
+    self.extension_time_seconds = new_timer
 
 @external
 def change_minimum_bid_increment_percentage(new_percentage: uint256):
@@ -146,38 +156,16 @@ def _transfer_ownership(new_owner: address):
 
 
 event AuctionStarted:
-    """
-    @notice Emitted when a new auction starts.
-    @dev This event is triggered when an auction is initiated by the auctioneer.
-    @param lot The tokenId of the NFT being auctioned.
-    @param patron The address of the patron for whom the auctioneer is starting the auction. 
-    @param end_date The Unix timestamp when the auction will end.
-    """
     lot: indexed(uint256)
     patron: indexed(address)
     end_date: uint256
 
 event AuctionEnded:
-    """
-    @notice Emitted when an auction ends.
-    @dev This event is triggered either when the auction duration has elapsed or the auction is manually ended by the auctioneer.
-    @param lot The tokenId of the NFT auctioned.
-    @param winner The address of the highest bidder who won the NFT.
-    @param proceeds The total amount of ERC20 tokens that the auction yielded, after fees.
-    """
     lot: indexed(uint256)
     winner: indexed(address)
     proceeds: uint256
 
 event BidSubmitted:
-    """
-    @notice Emitted whenever a new bid is placed on an auction.
-    @dev This event is used to track bids and inform participants and observers of changes in auction state.
-    @param lot The tokenId of the NFT being auctioned.
-    @param bidder The address of the participant who placed the bid.
-    @param bid The amount of the bid placed, in ERC20 tokens.
-    @param new_end_date The updated end date of the auction if the bid was placed close to the original end time and triggered an extension.
-    """
     lot: indexed(uint256)
     bidder: indexed(address)
     bid: uint256
@@ -222,7 +210,7 @@ def mint_and_start_auction(uri: String[176], patron: address, nft_contract: NftC
     @param nft_contract The address of the NFT contract with minting capability.
     """
     self._check_owner_or_auctioneer()
-    token_id: uint256 = nft_contract.mint(uri, self)  # Mint directly to the auction contract
+    token_id: uint256 = nft_contract.safe_mint(self,uri)  # Mint directly to the auction contract
 
     assert self.auction_ends[token_id] == 0, "Auction is still in progress"
     self._initialize_auction(token_id, patron)
@@ -238,7 +226,7 @@ def start_auction(lot: uint256, patron: address):
     self._check_owner_or_auctioneer()
     assert self.auction_ends[lot] == 0, "Auction is still in progress"
     nft.transferFrom(msg.sender, self, lot)
-    self._initalize_auction(lot, patron)
+    self._initialize_auction(lot, patron)
 
 @external
 def start_auction_with_auctionhouse_held_nft(lot: uint256, patron: address):
@@ -250,12 +238,12 @@ def start_auction_with_auctionhouse_held_nft(lot: uint256, patron: address):
     self._check_owner_or_auctioneer()
     assert self.auction_ends[lot] == 0, "Auction is ongoing"
     assert nft.ownerOf(lot) == self, "Auction House must own the NFT to start an auction."
-    self._initalize_auction(lot, patron)
+    self._initialize_auction(lot, patron)
 
 @internal
-def _initalize_auction(lot: uint256, patron: address):
+def _initialize_auction(lot: uint256, patron: address):
     """
-    @dev Initalizes  an auction by setting the conditions common to both auction types.
+    @dev Initializes  an auction by setting the conditions common to both auction types.
     @param lot The token ID of the NFT to auction.
     @param patron The address initiating the auction.
     """
@@ -298,7 +286,6 @@ def end(lot: uint256):
     @param lot The ID of the lot to close the auction for.
     """
 
-    #@notice code improvement suggestion: added revert message.
     assert block.timestamp >= self.auction_ends[lot], "AUCTION NOT FINISHED"
     winningBid: Bid = self.topBid[lot]
 
