@@ -1,7 +1,5 @@
 import { expect } from "chai";
 import { BaseContract, ContractTransactionResponse } from "ethers";
-import { BaseContract, ContractTransactionResponse } from "ethers";
-import { BaseContract, ContractTransactionResponse } from "ethers";
 import { ethers } from "hardhat";
 
 const {
@@ -40,29 +38,29 @@ describe("Auction House Tests", function () {
       "https://test.url",
       "ENEFFTEE",
       "1",
-      "0x000000000000000000000000000000000000dead"
+      { from: accounts[0].address }
     );
     await nft.waitForDeployment();
     nftAddress = await nft.getAddress();
 
     console.log("NFT deployed to:", nftAddress);
 
-    const AuctionHouse = await ethers.getContractFactory(
-      "auction_house"
-    );
+    const AuctionHouse = await ethers.getContractFactory("auction");
 
     auctionHouse = await AuctionHouse.deploy(
       mockTokenAddress,
       nftAddress,
-      50
+      50,
+      { from: accounts[0].address }
     );
     await auctionHouse.waitForDeployment();
-    await auctionHouse.set_auctioneer(nftAddress);
+    await auctionHouse.set_auctioneer(accounts[0].address);
 
     auctionHouseAddress = await auctionHouse.getAddress();
+    await nft.set_minter(auctionHouseAddress, true, {
+      from: accounts[0].address,
+    });
     console.log("Auction House deployed to:", auctionHouseAddress);
-
-    await nft.change_auction_house_contract(auctionHouseAddress);
   });
 
   describe("Auction tests", function () {
@@ -125,7 +123,7 @@ describe("Auction House Tests", function () {
       );
 
       const bidAmount = ethers.parseUnits("1000", 18);
-      const feeAmount = (bidAmount * 50n) / 1000n; // Assuming a fee of 5%
+      const feeAmount = (bidAmount * 50n) / 100000n; // Assuming a fee of 0.05%
       const expectedPatronProceeds = bidAmount - feeAmount;
 
       expect(finalBidderBalance).to.equal(
@@ -210,11 +208,14 @@ describe("Auction House Tests", function () {
         { from: accounts[0].address }
       );
 
-      await nft.mint_and_start_auction(
-        "http://memes.org",
+      const gasTx = await auctionHouse.mint_and_start_auction(
+        "http://",
         accounts[3].address,
+        nftAddress,
         { from: accounts[0].address }
       );
+      const receipt = await gasTx.wait();
+
       const tokenId = (await nft._counter()) - 1n;
 
       expect(await nft.ownerOf(tokenId)).to.equal(
@@ -251,9 +252,10 @@ describe("Auction House Tests", function () {
       );
 
       // Simulate minting directly to the auction house and starting an auction
-      await nft.mint_and_start_auction(
+      await auctionHouse.mint_and_start_auction(
         "http://example-nft.org",
         accounts[0].address,
+        nftAddress,
         { from: accounts[0].address }
       );
       const tokenId = (await nft._counter()) - 1n;
@@ -408,7 +410,7 @@ describe("Auction House Tests", function () {
         .withArgs(
           tokenId.toString(),
           accounts[1].address,
-          BigInt(1000e18 - 50e18)
+          BigInt(1000e18 - 0.5e18)
         );
     });
   });
@@ -598,48 +600,34 @@ describe("NFT Contract Tests", function () {
       "https://test.url",
       "ENEFFTEE",
       "1",
-      "0x000000000000000000000000000000000000dead"
+      { from: accounts[0].address }
     );
     await nft.waitForDeployment();
     nftAddress = await nft.getAddress();
 
     console.log("NFT deployed to:", nftAddress);
 
-    const AuctionHouse = await ethers.getContractFactory(
-      "auction_house"
-    );
+    const AuctionHouse = await ethers.getContractFactory("auction");
 
     auctionHouse = await AuctionHouse.deploy(
       mockTokenAddress,
       nftAddress,
-      50
+      50,
+      { from: accounts[0].address }
     );
     await auctionHouse.waitForDeployment();
-
-    await auctionHouse.set_auctioneer(nftAddress);
+    await auctionHouse.set_auctioneer(accounts[0].address);
 
     auctionHouseAddress = await auctionHouse.getAddress();
+    await nft.set_minter(auctionHouseAddress, true, {
+      from: accounts[0].address,
+    });
     console.log("Auction House deployed to:", auctionHouseAddress);
-
-    await nft.change_auction_house_contract(auctionHouseAddress);
-  });
-
-  it("Should mint a new token and start an auction", async function () {
-    await expect(
-      nft.mint_and_start_auction(
-        "https://token.uri/1",
-        accounts[0].address
-      )
-    )
-      .to.emit(nft, "Transfer")
-      .withArgs(ethers.ZeroAddress, auctionHouseAddress, 0)
-      .to.emit(auctionHouse, "AuctionStarted");
-
-    const owner = await nft.ownerOf(0);
-    expect(owner).to.equal(auctionHouseAddress);
   });
 
   it("Should allow setting and revoking minter role", async function () {
+    const tokenId = await nft._counter();
+
     await expect(nft.set_minter(accounts[2].address, true))
       .to.emit(nft, "RoleMinterChanged")
       .withArgs(accounts[2].address, true);
@@ -651,7 +639,7 @@ describe("NFT Contract Tests", function () {
         .safe_mint(accounts[2].address, "https://new.uri")
     )
       .to.emit(nft, "Transfer")
-      .withArgs(ethers.ZeroAddress, accounts[2].address, 1);
+      .withArgs(ethers.ZeroAddress, accounts[2].address, tokenId);
 
     // Revoke minter role
     await expect(nft.set_minter(accounts[2].address, false))
@@ -659,55 +647,25 @@ describe("NFT Contract Tests", function () {
       .withArgs(accounts[2].address, false);
   });
 
-  it("Should burn a token", async function () {
+  it("Should burn an NFT", async function () {
+    const totalSupplyStart = await nft.totalSupply();
+    const tokenId = await nft._counter();
     // Mint token first
     await nft.safe_mint(accounts[0].address, "https://token.uri/2");
 
     // Burn token
-    await expect(nft.burn(2))
+    await expect(nft.burn(tokenId))
       .to.emit(nft, "Transfer")
-      .withArgs(accounts[0].address, ethers.ZeroAddress, 2);
-
-    // Check total supply
+      .withArgs(accounts[0].address, ethers.ZeroAddress, tokenId);
     const totalSupply = await nft.totalSupply();
-    expect(totalSupply).to.equal(2); // Assuming 2 others were minted before and not burned
-  });
 
-  it("Should allow the owner to change the auction house contract address", async function () {
-    // Initially check the set auction house address
-    expect(await nft.auction_contract_address()).to.equal(
-      auctionHouseAddress
-    );
-
-    // Change the auction house address by the owner
-
-    await nft.change_auction_house_contract(ethers.ZeroAddress);
-
-    // Verify the change was successful
-    expect(await nft.auction_contract_address()).to.equal(
-      ethers.ZeroAddress
-    );
-
-    // Verify that second change is also successful
-    await nft.change_auction_house_contract(auctionHouseAddress);
-  });
-
-  it("Should not allow a non-owner to change the auction house contract address", async function () {
-    // Attempt to change the auction house address by a non-owner
-    await expect(
-      nft
-        .connect(accounts[2])
-        .change_auction_house_contract(ethers.ZeroAddress)
-    ).to.be.revertedWith("Ownable: caller is not the owner");
-
-    // Verify the address was not changed
-    expect(await nft.auction_contract_address()).to.equal(
-      auctionHouseAddress
-    );
+    expect(totalSupply).to.equal(totalSupplyStart); // tokenSupply should be equal to before the mint.
   });
 
   it("Should transfer ownership and update minter status", async function () {
-    await expect(nft.transfer_ownership(accounts[3].address))
+    await expect(
+      nft.transfer_ownership_and_minter(accounts[3].address)
+    )
       .to.emit(nft, "OwnershipTransferred")
       .withArgs(accounts[0].address, accounts[3].address);
 

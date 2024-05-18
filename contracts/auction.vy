@@ -8,19 +8,28 @@
 
 from vyper.interfaces import ERC20
 from vyper.interfaces import ERC721
+interface NftContract:
+    def mint(owner: address, uri: String[176]) -> uint256: nonpayable
+interface ERC721Receiver:
+    def onERC721Received(
+            operator: address,
+            owner: address,
+            tokenId: uint256,
+            data: Bytes[1024]
+        ) -> bytes32: view
 
 
-#@notice code improvement suggestion: no magic numbers & admin-changeable protocol variables
 
 # Protocol settings variables
-auction_duration: public(uint256)# Duration of auctions, default 5 days
+auction_duration: public(uint256) # Duration of auctions, default 5 days
 minimum_bid_increment_percentage: public(uint256)  # Minimum bid increment
 extension_time_seconds: public(uint256)  # Time added to auction if a bid is made near end
 starting_bid: public(uint256)  # Starting bid for auctions
-MAX_FEE_PERCENTAGE: constant(uint256) = 1000
-fee: public(uint256)
-bid_token: public(immutable(ERC20))
-nft: public(immutable(ERC721))
+MAX_FEE_PERCENTAGE: constant(uint256) = 100_000  # Max fee percentage basis points
+PERCENTAGE_SCALAR: constant(uint256) = 100_000  # Scalar to maintain precision in percentages
+fee: public(uint256)  # Fee percentage of the auction house
+bid_token: public(immutable(ERC20))  # ERC20 token used for bidding
+nft: public(immutable(ERC721))  # ERC721 token that represents the NFTs
 
 # ///////////////////////////////////////////////////// #
 #                     Admin Functions                   #
@@ -44,7 +53,6 @@ event AuctioneerChanged:
 
 
 
-#@notice code improvement suggestion:  admin-changeable protocol variables
 @external
 def change_auction_duration(new_duration: uint256):
     """
@@ -53,6 +61,17 @@ def change_auction_duration(new_duration: uint256):
     """
     self._check_owner()
     self.auction_duration = new_duration
+
+@external
+def change_sniping_timer(new_timer: uint256):
+    """
+    @dev Changes the time added to an auction if a bid is made near its end.
+    @notice Can only be called by the contract owner.
+    @param new_timer The new extension time in seconds.
+    """
+    self._check_owner()
+    assert new_timer > 0 and new_timer <= 86400, "Invalid timer: must be between 1 second and 24 hours"
+    self.extension_time_seconds = new_timer
 
 @external
 def change_minimum_bid_increment_percentage(new_percentage: uint256):
@@ -114,6 +133,14 @@ def _check_auctioneer():
     """
     assert msg.sender == self.auctioneer, "Caller is not the auctioneer"
 
+@internal
+def _check_owner_or_auctioneer():
+    """
+    @dev Checks if the message sender is either the owner or the auctioneer.
+    """
+    assert msg.sender == self.owner or msg.sender == self.auctioneer, \
+           "Caller is not the owner or the auctioneer"
+
 
 @internal
 def _transfer_ownership(new_owner: address):
@@ -137,20 +164,18 @@ def _transfer_ownership(new_owner: address):
 event AuctionStarted:
     lot: indexed(uint256)
     patron: indexed(address)
-    endDate: uint256
-
+    end_date: uint256
 
 event AuctionEnded:
     lot: indexed(uint256)
     winner: indexed(address)
     proceeds: uint256
 
-
 event BidSubmitted:
     lot: indexed(uint256)
     bidder: indexed(address)
     bid: uint256
-    newEndDate: uint256
+    new_end_date: uint256
 
 
 topBid: public(HashMap[uint256, Bid])
@@ -159,8 +184,7 @@ auction_ends: public(HashMap[uint256, uint256])
 
 
 
-
-profit: public(uint256)
+protocol_fee: public(uint256)
 
 struct Bid:
         bidder: address
@@ -178,58 +202,65 @@ def __init__(_token: ERC20, _nft: ERC721, _fee: uint256):
 
     self._transfer_ownership(msg.sender)
     self.fee = _fee
-    self.auction_duration =  86400 * 5  # default 5 days
+    self.auction_duration =  432_000  # default 5 days
     self.extension_time_seconds = 3600  # default 1 hour
+
+
+
+@external
+def mint_and_start_auction(uri: String[176], patron: address, nft_contract: NftContract):
+    """
+    @dev Mints a new NFT and starts an auction for it.
+    @param uri The URI for the NFT to be minted.
+    @param patron The address of the patron for whom the auction is being started.
+    @param nft_contract The address of the NFT contract with minting capability.
+    """
+    self._check_owner_or_auctioneer()
+    token_id: uint256 = nft_contract.mint(self,uri)  # Mint directly to the auction contract
+
+    assert self.auction_ends[token_id] == 0, "Auction is still in progress"
+    self._initialize_auction(token_id, patron)
 
 
 @external
 def start_auction(lot: uint256, patron: address):
     """
-    @dev Starts an auction for a lot.
-    @param lot The tokenID of the nft to start an auction for.
+    @dev Starts an auction for a lot, transferring the NFT to this contract.
+    @param lot The tokenID of the NFT to start an auction for.
+    @param patron The address of the patron whom the auctioneer is starting the auction for.
     """
-    assert msg.sender == self.owner or msg.sender == self.auctioneer, "Unauthorized"
-
+    self._check_owner_or_auctioneer()
     assert self.auction_ends[lot] == 0, "Auction is still in progress"
     nft.transferFrom(msg.sender, self, lot)
-
-    self.auction_ends[lot] = block.timestamp + self.auction_duration
-
-    self.patron[lot] = patron
-    self.topBid[lot] = Bid(
-        {
-            bidder: empty(address),
-            bid: self.starting_bid,
-        }
-    )
-    #@notice code improvement suggestion: added auction endDate.
-    log AuctionStarted(lot, patron, block.timestamp + self.auction_duration)
+    self._initialize_auction(lot, patron)
 
 @external
 def start_auction_with_auctionhouse_held_nft(lot: uint256, patron: address):
     """
-    @dev Starts an auction for a lot after verifying the auction house owns the NFT.
+    @dev Starts an auction for a lot already held by the auction house.
     @param lot The tokenID of the NFT to start an auction for.
-    @param patron The address of the patron starting the auction.
+    @param patron The address of the patron whom the auctioneer is starting the auction for.
     """
-    assert msg.sender == self.owner or msg.sender == self.auctioneer, "Unauthorized"
-
-    # Ensure that this contract is the current owner of the lot
+    self._check_owner_or_auctioneer()
     assert self.auction_ends[lot] == 0, "Auction is ongoing"
     assert nft.ownerOf(lot) == self, "Auction House must own the NFT to start an auction."
+    self._initialize_auction(lot, patron)
 
+@internal
+def _initialize_auction(lot: uint256, patron: address):
+    """
+    @dev Initializes  an auction by setting the conditions common to both auction types.
+    @param lot The token ID of the NFT to auction.
+    @param patron The address initiating the auction.
+    """
     self.auction_ends[lot] = block.timestamp + self.auction_duration
-    
     self.patron[lot] = patron
-    self.topBid[lot] = Bid(
-        {
-            bidder: empty(address),  # No bidder yet
-            bid: self.starting_bid,
-        }
-    )
-    log AuctionStarted(lot, patron, block.timestamp + self.auction_duration)
+    self.topBid[lot] = Bid({
+        bidder: empty(address),
+        bid: self.starting_bid
+    })
+    log AuctionStarted(lot, patron, self.auction_ends[lot])
 
-    
 
 @external
 def bid(bid: uint256, lot: uint256):
@@ -261,16 +292,14 @@ def end(lot: uint256):
     @param lot The ID of the lot to close the auction for.
     """
 
-    #@notice code improvement suggestion: added revert message.
-    
     assert block.timestamp >= self.auction_ends[lot], "AUCTION NOT FINISHED"
     winningBid: Bid = self.topBid[lot]
 
     if winningBid.bidder != empty(address):
         # There was at least one bid higher than the starting bid
-        fee: uint256 = (winningBid.bid * self.fee) / 1000
+        fee: uint256 = (winningBid.bid * self.fee) / PERCENTAGE_SCALAR
         patron_proceeds: uint256 = winningBid.bid - fee
-        self.profit += fee
+        self.protocol_fee += fee
 
         bid_token.transfer(self.patron[lot], patron_proceeds)
         nft.transferFrom(self, winningBid.bidder, lot)
@@ -290,6 +319,5 @@ def withdraw_proceeds(benefactor: address):
     @dev Withdraws the fees generated from the auctions.
     """
     self._check_owner()
-    bid_token.transfer(benefactor, self.profit)
-    self.profit = 0
-
+    bid_token.transfer(benefactor, self.protocol_fee)
+    self.protocol_fee = 0
