@@ -26,8 +26,8 @@
         - `DOMAIN_SEPARATOR` (`external` `view` function),
         - `eip712Domain` (`external` `view` function),
         - `owner` (`external` `view` function),
-        - `transfer_ownership` (`internal` function),
-        - `renounce_ownership` (`internal` function),
+        - `_transfer_ownership` (`internal` function),
+        - `_renounce_ownership` (`internal` function),
         - `_check_on_erc721_received` (`internal` function),
         - `_before_token_transfer` (`internal` function),
         - `_after_token_transfer` (`internal` function).
