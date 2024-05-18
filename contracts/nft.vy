@@ -19,7 +19,7 @@
         - `is_minter` (`external` `view` function),
         - `safe_mint` (`external` function),
         - `set_minter` (`external` function),
-        - `change_ownership_and_minter` (`external` function),
+        - `transfer_ownership_and_minter` (`external` function),
         - `renounce_ownership_and_minter` (`external` function),
         - `permit` (`external` function),
         - `nonces` (`external` `view` function),

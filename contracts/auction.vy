@@ -160,17 +160,39 @@ def _transfer_ownership(new_owner: address):
 # ///////////////////////////////////////////////////// #
 
 
-
+#
+#    @notice Emitted when a new auction starts.
+#    @dev This event is triggered when an auction is initiated by the auctioneer.
+#    @param lot The tokenId of the NFT being auctioned.
+#    @param patron The address of the patron for whom the auctioneer is starting the auction. 
+#    @param end_date The Unix timestamp when the auction will end.
+#    
 event AuctionStarted:
     lot: indexed(uint256)
     patron: indexed(address)
     end_date: uint256
 
+
+#
+#    @notice Emitted when an auction ends.
+#    @dev This event is triggered either when the auction duration has elapsed or the auction is manually ended by the auctioneer.
+#    @param lot The tokenId of the NFT auctioned.
+#    @param winner The address of the highest bidder who won the NFT.
+#    @param proceeds The total amount of ERC20 tokens that the auction yielded, after fees.
+#    
 event AuctionEnded:
     lot: indexed(uint256)
     winner: indexed(address)
     proceeds: uint256
 
+#  
+#    @notice Emitted whenever a new bid is placed on an auction.
+#    @dev This event is used to track bids and inform participants and observers of changes in auction state.
+#    @param lot The tokenId of the NFT being auctioned.
+#    @param bidder The address of the participant who placed the bid.
+#    @param bid The amount of the bid placed, in ERC20 tokens.
+#    @param new_end_date The updated end date of the auction if the bid was placed close to the original end time and triggered an extension.
+#    
 event BidSubmitted:
     lot: indexed(uint256)
     bidder: indexed(address)
