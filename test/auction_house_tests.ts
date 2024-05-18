@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { BaseContract, ContractTransactionResponse } from "ethers";
 import { ethers } from "hardhat";
+import { _TypedDataEncoder } from "@ethersproject/hash";
 
 const {
   anyValue,
@@ -33,10 +34,10 @@ describe("Auction House Tests", function () {
     const NFT = await ethers.getContractFactory("nft");
 
     nft = await NFT.deploy(
-      "ENNEFFTEE",
+      "Nft Contract",
       "TEST",
       "https://test.url",
-      "ENEFFTEE",
+      "Nft Contract",
       "1",
       { from: accounts[0].address }
     );
@@ -595,10 +596,10 @@ describe("NFT Contract Tests", function () {
     const NFT = await ethers.getContractFactory("nft");
 
     nft = await NFT.deploy(
-      "ENNEFFTEE",
+      "Nft Contract",
       "TEST",
       "https://test.url",
-      "ENEFFTEE",
+      "Nft Contract",
       "1",
       { from: accounts[0].address }
     );
@@ -623,6 +624,61 @@ describe("NFT Contract Tests", function () {
       from: accounts[0].address,
     });
     console.log("Auction House deployed to:", auctionHouseAddress);
+  });
+
+  it("Should correctly permit a spender with a valid signature and deadline", async function () {
+    const owner = accounts[4];
+    const spender = accounts[1];
+    const tokenId = await nft._counter();
+
+    await nft.safe_mint(owner.address, "https://nft.uri", {
+      from: accounts[0].address,
+    });
+
+    const currentBlock = await ethers.provider.getBlock("latest");
+    const deadline = currentBlock!.timestamp + 36000;
+
+    const chainId = (await ethers.provider.getNetwork()).chainId;
+
+    const domain = {
+      name: "Nft Contract",
+      version: "1",
+      chainId: chainId,
+      verifyingContract: nftAddress,
+    };
+    const types = {
+      Permit: [
+        { name: "spender", type: "address" },
+        { name: "tokenId", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
+    };
+
+    const currentTokenNonce = await nft.nonces(tokenId);
+
+    const message = {
+      spender: spender.address,
+      tokenId: tokenId,
+      nonce: currentTokenNonce.toString(),
+      deadline: deadline,
+    };
+
+    const signature = await owner.signTypedData(
+      domain,
+      types,
+      message
+    );
+    const { v, r, s } = ethers.Signature.from(signature);
+
+    await expect(
+      nft.permit(spender.address, tokenId, deadline, v, r, s)
+    )
+      .to.emit(nft, "Approval")
+      .withArgs(owner.address, spender.address, tokenId);
+
+    // Check if the spender is now approved
+    expect(await nft.getApproved(tokenId)).to.equal(spender.address);
   });
 
   it("Should allow setting and revoking minter role", async function () {

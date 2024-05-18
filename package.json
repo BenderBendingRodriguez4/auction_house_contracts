@@ -13,5 +13,9 @@
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@nomiclabs/hardhat-vyper": "^3.0.6",
     "hardhat": "^2.22.3"
+  },
+  "dependencies": {
+    "@ethersproject/hardware-wallets": "^5.7.0",
+    "ethers": "^6.12.1"
   }
 }
