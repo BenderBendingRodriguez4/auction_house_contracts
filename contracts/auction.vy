@@ -63,7 +63,7 @@ def change_auction_duration(new_duration: uint256):
     self.auction_duration = new_duration
 
 @external
-def change_sniping_timer(new_timer: uint256):
+def change_extension_time_seconds(new_timer: uint256):
     """
     @dev Changes the time added to an auction if a bid is made near its end.
     @notice Can only be called by the contract owner.
@@ -78,10 +78,6 @@ def change_minimum_bid_increment_percentage(new_percentage: uint256):
     self._check_owner()
     self.minimum_bid_increment_percentage = new_percentage
 
-@external
-def change_extension_time_seconds(new_extension_time: uint256):
-    self._check_owner()
-    self.extension_time_seconds = new_extension_time
 
 @external
 def change_starting_bid(new_starting_bid: uint256):
