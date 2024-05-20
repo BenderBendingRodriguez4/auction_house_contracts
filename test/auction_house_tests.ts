@@ -51,6 +51,7 @@ describe("Auction House Tests", function () {
     auctionHouse = await AuctionHouse.deploy(
       mockTokenAddress,
       nftAddress,
+      nftAddress,
       50,
       { from: accounts[0].address }
     );
@@ -212,7 +213,6 @@ describe("Auction House Tests", function () {
       const gasTx = await auctionHouse.mint_and_start_auction(
         "http://",
         accounts[3].address,
-        nftAddress,
         { from: accounts[0].address }
       );
       const receipt = await gasTx.wait();
@@ -256,7 +256,6 @@ describe("Auction House Tests", function () {
       await auctionHouse.mint_and_start_auction(
         "http://example-nft.org",
         accounts[0].address,
-        nftAddress,
         { from: accounts[0].address }
       );
       const tokenId = (await nft._counter()) - 1n;
@@ -612,6 +611,7 @@ describe("NFT Contract Tests", function () {
 
     auctionHouse = await AuctionHouse.deploy(
       mockTokenAddress,
+      nftAddress,
       nftAddress,
       50,
       { from: accounts[0].address }

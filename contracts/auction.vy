@@ -30,7 +30,7 @@ PERCENTAGE_SCALAR: constant(uint256) = 100_000  # Scalar to maintain precision i
 fee: public(uint256)  # Fee percentage of the auction house
 bid_token: public(immutable(ERC20))  # ERC20 token used for bidding
 nft: public(immutable(ERC721))  # ERC721 token that represents the NFTs
-
+nftExtendedMinting: public(immutable(NftContract))  # Extended ERC721 token functionality (vyper doesnt support extending interfaces.)
 # ///////////////////////////////////////////////////// #
 #                     Admin Functions                   #
 # ///////////////////////////////////////////////////// #
@@ -213,14 +213,16 @@ struct Bid:
         bid: uint256
 
 @external
-def __init__(_token: ERC20, _nft: ERC721, _fee: uint256):
+def __init__(_token: ERC20, _nft: ERC721,_nftExtended: NftContract, _fee: uint256):
     """
     @param _token The address of the ERC20 token to use for the auction.
     @param _nft The address of the ERC721 token to auction.
+    @param _nftExtended The address of the ERC721 token to mint & auction.
     @param _fee The percentage of the winning bid to take as a fee for the dao 
     """
     bid_token = _token
     nft = _nft
+    nftExtendedMinting =_nftExtended
 
     self._transfer_ownership(msg.sender)
     self.fee = _fee
@@ -230,15 +232,14 @@ def __init__(_token: ERC20, _nft: ERC721, _fee: uint256):
 
 
 @external
-def mint_and_start_auction(uri: String[176], patron: address, nft_contract: NftContract):
+def mint_and_start_auction(uri: String[176], patron: address):
     """
     @dev Mints a new NFT and starts an auction for it.
     @param uri The URI for the NFT to be minted.
     @param patron The address of the patron for whom the auction is being started.
-    @param nft_contract The address of the NFT contract with minting capability.
     """
     self._check_owner_or_auctioneer()
-    token_id: uint256 = nft_contract.mint(self,uri)  # Mint directly to the auction contract
+    token_id: uint256 = nftExtendedMinting.mint(self,uri)  # Mint directly to the auction contract
 
     assert self.auction_ends[token_id] == 0, "Auction is still in progress"
     self._initialize_auction(token_id, patron)
