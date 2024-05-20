@@ -3,6 +3,9 @@
     "nftContract": {
       "address": "0xDe539Ca2056B289264162A0759CD138230852428",
       "startBlock": 10188238
+    },
+    "auctionHouseContract": {
+      "address": "0x116CD0A656Df5429884F8e357ac49BE81C288aa1"
     }
   }
 }

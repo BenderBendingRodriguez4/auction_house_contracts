@@ -45,3 +45,35 @@ dataSources:
         - event: RoleMinterChanged(indexed address,bool)
           handler: handleRoleMinterChanged
       file: ./src/nft-contract.ts
+  - kind: ethereum
+    name: auctionHouseContract
+    network: base-sepolia
+    source:
+      address: "0x116CD0A656Df5429884F8e357ac49BE81C288aa1"
+      abi: auctionHouseContract
+      startBlock: 10188241
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - auctionHouseContractOwnershipTransferred
+        - AuctioneerChanged
+        - AuctionStarted
+        - AuctionEnded
+        - BidSubmitted
+      abis:
+        - name: auctionHouseContract
+          file: ./abis/auctionHouseContract.json
+      eventHandlers:
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: AuctioneerChanged(indexed address,indexed address)
+          handler: handleAuctioneerChanged
+        - event: AuctionStarted(indexed uint256,indexed address,uint256)
+          handler: handleAuctionStarted
+        - event: AuctionEnded(indexed uint256,indexed address,uint256)
+          handler: handleAuctionEnded
+        - event: BidSubmitted(indexed uint256,indexed address,uint256,uint256)
+          handler: handleBidSubmitted
+      file: ./src/auction-house-contract.ts

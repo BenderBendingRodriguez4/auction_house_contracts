@@ -70,3 +70,51 @@ type RoleMinterChanged @entity(immutable: true) {
   blockTimestamp: BigInt!
   transactionHash: Bytes!
 }
+type auctionHouseContractOwnershipTransferred @entity(immutable: true) {
+  id: Bytes!
+  previous_owner: Bytes! # address
+  new_owner: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type AuctioneerChanged @entity(immutable: true) {
+  id: Bytes!
+  previous_auctioneer: Bytes! # address
+  new_auctioneer: Bytes! # address
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type AuctionStarted @entity(immutable: true) {
+  id: Bytes!
+  lot: BigInt! # uint256
+  patron: Bytes! # address
+  end_date: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type AuctionEnded @entity(immutable: true) {
+  id: Bytes!
+  lot: BigInt! # uint256
+  winner: Bytes! # address
+  proceeds: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
+
+type BidSubmitted @entity(immutable: true) {
+  id: Bytes!
+  lot: BigInt! # uint256
+  bidder: Bytes! # address
+  bid: BigInt! # uint256
+  new_end_date: BigInt! # uint256
+  blockNumber: BigInt!
+  blockTimestamp: BigInt!
+  transactionHash: Bytes!
+}
