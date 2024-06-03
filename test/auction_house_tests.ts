@@ -51,7 +51,6 @@ describe("Auction House Tests", function () {
     auctionHouse = await AuctionHouse.deploy(
       mockTokenAddress,
       nftAddress,
-      nftAddress,
       50,
       { from: accounts[0].address }
     );
@@ -611,7 +610,6 @@ describe("NFT Contract Tests", function () {
 
     auctionHouse = await AuctionHouse.deploy(
       mockTokenAddress,
-      nftAddress,
       nftAddress,
       50,
       { from: accounts[0].address }

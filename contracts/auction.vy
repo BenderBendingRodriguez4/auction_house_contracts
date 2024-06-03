@@ -209,16 +209,15 @@ struct Bid:
         bid: uint256
 
 @external
-def __init__(_token: ERC20, _nft: ERC721,_nftExtended: NftContract, _fee: uint256):
+def __init__(_token: ERC20, _nft: address, _fee: uint256):
     """
     @param _token The address of the ERC20 token to use for the auction.
-    @param _nft The address of the ERC721 token to auction.
-    @param _nftExtended The address of the ERC721 token to mint & auction.
+    @param _nft The address of the ERC721 token to mint & auction.
     @param _fee The percentage of the winning bid to take as a fee for the dao 
     """
     bid_token = _token
-    nft = _nft
-    nftExtendedMinting =_nftExtended
+    nft = ERC721(_nft)
+    nftExtendedMinting = NftContract(_nft)
 
     self._transfer_ownership(msg.sender)
     self.fee = _fee

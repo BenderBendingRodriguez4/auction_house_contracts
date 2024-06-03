@@ -1,32 +1,24 @@
 // Importing necessary libraries and functions
-const { ethers, run } = require("hardhat");
+const { ethers } = require("hardhat");
 
 async function main() {
   const [deployer] = await ethers.getSigners();
+  console.log(deployer);
   console.log(
     "Deploying contracts with the account:",
     deployer.address
   );
   console.log(
     "Account balance:",
-    (await deployer.getBalance()).toString()
+    (await deployer.provider.getBalance(deployer.address)).toString()
   );
 
   // Deploy Mock ERC20 Token
   const MockToken = await ethers.getContractFactory("mock_erc20");
   const mockToken = await MockToken.deploy("Mock Token", "MTK", 18);
-  await mockToken.deployed();
-  console.log("Mock Token deployed to:", mockToken.address);
-
-  // Verify Mock Token
-  try {
-    await run("verify:verify", {
-      address: mockToken.address,
-      constructorArguments: ["Mock Token", "MTK", 18],
-    });
-  } catch (error) {
-    console.error("Verification failed for Mock Token:", error);
-  }
+  await mockToken.waitForDeployment();
+  const mockTokenAddress = await mockToken.getAddress();
+  console.log("Mock Token deployed to:", mockTokenAddress);
 
   // Deploy NFT Contract
   const NFT = await ethers.getContractFactory("nft");
@@ -37,48 +29,24 @@ async function main() {
     "Saturn Legend Series",
     "1"
   );
-  await nft.deployed();
-  console.log("NFT deployed to:", nft.address);
-
-  // Verify NFT Contract
-  try {
-    await run("verify:verify", {
-      address: nft.address,
-      constructorArguments: [
-        "Saturn Legend Series",
-        "SLS",
-        "https://test.url",
-        "Saturn Legend Series",
-        "1",
-      ],
-    });
-  } catch (error) {
-    console.error("Verification failed for NFT Contract:", error);
-  }
+  await nft.waitForDeployment();
+  const nftAddress = await nft.getAddress();
+  console.log("NFT deployed to:", nftAddress);
 
   // Deploy Auction House
   const AuctionHouse = await ethers.getContractFactory("auction");
   const auctionHouse = await AuctionHouse.deploy(
-    mockToken.address,
-    nft.address,
+    mockTokenAddress,
+    nftAddress,
     50
   );
-  await auctionHouse.deployed();
-  console.log("Auction House deployed to:", auctionHouse.address);
-
-  // Verify Auction House
-  try {
-    await run("verify:verify", {
-      address: auctionHouse.address,
-      constructorArguments: [mockToken.address, nft.address, 50],
-    });
-  } catch (error) {
-    console.error("Verification failed for Auction House:", error);
-  }
+  await auctionHouse.waitForDeployment();
+  const auctionHouseAddress = await auctionHouse.getAddress();
+  console.log("Auction House deployed to:", auctionHouseAddress);
 
   // Post-deployment setup
   await auctionHouse.set_auctioneer(deployer.address);
-  await nft.set_minter(auctionHouse.address, true);
+  await nft.set_minter(auctionHouseAddress, true);
 
   console.log("Setup complete!");
 }
