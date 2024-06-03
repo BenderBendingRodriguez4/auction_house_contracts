@@ -7,5 +7,14 @@
     "auctionHouseContract": {
       "address": "0x116CD0A656Df5429884F8e357ac49BE81C288aa1"
     }
+  },
+  "arbitrum-sepolia": {
+    "nftContract": {
+      "address": "0xB5a3cfD183161fB0EF737b22dda925eBD55dAAAf",
+      "startBlock": 50840501
+    },
+    "auctionHouseContract": {
+      "address": "0xDe539Ca2056B289264162A0759CD138230852428"
+    }
   }
 }

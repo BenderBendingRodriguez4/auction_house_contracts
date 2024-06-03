@@ -6,7 +6,7 @@ schema:
 dataSources:
   - kind: ethereum
     name: nftContract
-    network: base-sepolia
+    network: arbitrum-sepolia
     source:
       address: "0xDe539Ca2056B289264162A0759CD138230852428"
       abi: nftContract
@@ -47,9 +47,9 @@ dataSources:
       file: ./src/nft-contract.ts
   - kind: ethereum
     name: auctionHouseContract
-    network: base-sepolia
+    network: arbitrum-sepolia
     source:
-      address: "0x116CD0A656Df5429884F8e357ac49BE81C288aa1"
+      address: "0xDe539Ca2056B289264162A0759CD138230852428"
       abi: auctionHouseContract
       startBlock: 10188241
     mapping:

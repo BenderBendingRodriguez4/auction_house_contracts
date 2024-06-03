@@ -20,6 +20,15 @@ const config: HardhatUserConfig = {
         : [],
       chainId: 84532,
     },
+    arbitrumSepolia: {
+      url:
+        process.env.ARBITRUM_SEPOLIA_URL ||
+        "https://arbitrum-sepolia.blockpi.network/v1/rpc/public",
+      accounts: process.env.PRIVATE_KEY
+        ? [process.env.PRIVATE_KEY]
+        : [],
+      chainId: 421614,
+    },
   },
 };
 
