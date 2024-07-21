@@ -605,23 +605,6 @@ describe("NFT Contract Tests", function () {
     nftAddress = await nft.getAddress();
 
     console.log("NFT deployed to:", nftAddress);
-
-    const AuctionHouse = await ethers.getContractFactory("auction");
-
-    auctionHouse = await AuctionHouse.deploy(
-      mockTokenAddress,
-      nftAddress,
-      50,
-      { from: accounts[0].address }
-    );
-    await auctionHouse.waitForDeployment();
-    await auctionHouse.set_auctioneer(accounts[0].address);
-
-    auctionHouseAddress = await auctionHouse.getAddress();
-    await nft.set_minter(auctionHouseAddress, true, {
-      from: accounts[0].address,
-    });
-    console.log("Auction House deployed to:", auctionHouseAddress);
   });
 
   it("Should correctly permit a spender with a valid signature and deadline", async function () {
